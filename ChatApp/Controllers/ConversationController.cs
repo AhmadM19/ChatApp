@@ -2,9 +2,7 @@
 using ChatApp.Services;
 using ChatApp.Storage;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
+
 using System.Web;
 
 namespace ChatApp.Controllers

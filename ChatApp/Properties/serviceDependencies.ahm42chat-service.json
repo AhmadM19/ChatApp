@@ -1,0 +1,21 @@
+{
+  "dependencies": {
+    "apis1": {
+      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.ApiManagement/service/ChatApp-Api/apis/ChatApp",
+      "type": "apis.azure"
+    },
+    "storage1": {
+      "secretStore": "AzureAppSettings",
+      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.Storage/storageAccounts/ahm42chatstorage",
+      "type": "storage.azure",
+      "connectionId": "BlobStorage:ConnectionString",
+      "dynamicId": null
+    },
+    "cosmosdb1": {
+      "secretStore": "AzureAppSettings",
+      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.DocumentDB/databaseAccounts/ahm42chat-cosmosdb",
+      "type": "cosmosdb.azure",
+      "connectionId": "Cosmos:ConnectionString"
+    }
+  }
+}

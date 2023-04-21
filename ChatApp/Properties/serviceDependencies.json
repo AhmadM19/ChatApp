@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "apis1": {
+      "type": "apis"
+    },
+    "storage1": {
+      "type": "storage",
+      "connectionId": "BlobStorage:ConnectionString",
+      "dynamicId": null
+    },
+    "cosmosdb1": {
+      "type": "cosmosdb",
+      "connectionId": "Cosmos:ConnectionString"
+    }
+  }
+}
