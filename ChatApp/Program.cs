@@ -1,8 +1,10 @@
 using Azure.Storage.Blobs;
 using ChatApp.Configuration;
+using ChatApp.Services;
 using ChatApp.Storage;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Azure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +17,8 @@ builder.Services.AddSwaggerGen();
 
 //Add Configuration
 builder.Services.Configure<CosmosSettings>(builder.Configuration.GetSection("Cosmos"));
-builder.Services.Configure<BlobSettings>(builder.Configuration.GetSection("BlobSettings"));
+builder.Services.Configure<BlobSettings>(builder.Configuration.GetSection("BlobStorage"));
+
 builder.Services.AddSingleton(x =>
 {
     var connectionString = builder.Configuration.GetSection("BlobStorage:ConnectionString").Value;
@@ -23,8 +26,19 @@ builder.Services.AddSingleton(x =>
 });
 // Add Services
 builder.Services.AddSingleton<IProfileStore, CosmosProfileStore>();
-builder.Services.AddSingleton<IImageStore, BlobImageStore>();
+builder.Services.AddSingleton<IProfileService, ProfileService>();
 
+builder.Services.AddSingleton<IImageStore, BlobImageStore>();
+builder.Services.AddSingleton<IImageService, ImageService>();
+
+builder.Services.AddSingleton<IMessageStore,CosmosMessageStore>();
+
+builder.Services.AddSingleton<IConversationStore, CosmosConversationStore>();
+builder.Services.AddSingleton<IConversationService, ConversationService>();
+builder.Services.AddAzureClients(clientBuilder =>
+{
+    clientBuilder.AddBlobServiceClient(builder.Configuration["BlobStorage:ConnectionString:blob"], preferMsi: true);
+});
 
 var app = builder.Build();
 
@@ -42,3 +56,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }
