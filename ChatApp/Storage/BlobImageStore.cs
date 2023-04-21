@@ -1,4 +1,5 @@
-﻿using Azure.Storage.Blobs;
+﻿using Azure.Core;
+using Azure.Storage.Blobs;
 using ChatApp.Configuration;
 using ChatApp.Dtos;
 using ChatApp.Storage.Entities;
@@ -6,6 +7,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
+using System.ComponentModel;
+using System.IO;
 using System.Net;
 
 namespace ChatApp.Storage
@@ -13,32 +16,35 @@ namespace ChatApp.Storage
     public class BlobImageStore : IImageStore
     {
         private readonly BlobContainerClient _containerClient;
-        private readonly BlobSettings _blobSettings;
-
 
         public BlobImageStore(BlobServiceClient blobServiceClient, IOptions<BlobSettings> options)
         {
-            _blobSettings = options.Value;
             _containerClient = blobServiceClient.GetBlobContainerClient(options.Value.ContainerName);
         }
 
-
-
         public async Task<byte[]> DownloadImage(string id)
         {
-            var response = await _containerClient.GetBlobClient(id).DownloadAsync();
-            await using var memoryStream = new MemoryStream();
-            await response.Value.Content.CopyToAsync(memoryStream);
-            var bytes=memoryStream.ToArray();
-            return bytes;
+            var blobClient = _containerClient.GetBlobClient(id);
+            var downloadContent = await blobClient.DownloadAsync();
+            using (var memoryStream = new MemoryStream())
+            {
+                await downloadContent.Value.Content.CopyToAsync(memoryStream);
+                return memoryStream.ToArray();
+            }
         }
-        public async Task<string> UploadImage(IFormFile file)
-        {        
-            await using var stream = new MemoryStream();
-            await file.CopyToAsync(stream);
-            string imageId = Guid.NewGuid().ToString();
-            await _containerClient.UploadBlobAsync(imageId, stream);
-            return imageId;
+
+        public async Task<string> UploadImage(byte[] file)
+        {
+           using var stream = new MemoryStream(file);
+           string imageId = Guid.NewGuid().ToString();
+           stream.Position = 0;
+           await _containerClient.UploadBlobAsync(imageId, stream);
+           return imageId;   
+        }
+
+        public async Task DeleteImage(string id)
+        {
+            await _containerClient.DeleteBlobAsync(id);
         }
 
     }

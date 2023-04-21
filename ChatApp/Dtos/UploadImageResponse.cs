@@ -1,4 +1,5 @@
-﻿namespace ChatApp.Dtos
+﻿using System.ComponentModel.DataAnnotations;
+namespace ChatApp.Dtos
 {
-    public record UploadImageResponse(string imageId);
+    public record UploadImageResponse([Required] string imageId);
 }
