@@ -19,11 +19,11 @@ namespace ChatApp.Controllers
             _conversationService = conversationService;
         }
 
-        [HttpPost("{conversationId}/messages",Name ="conversations")]
+        [HttpPost("{conversationId}/messages")]
         public async Task<ActionResult<SendMessageResponse>> SendMessage(string conversationId,SendMessageRequest request)
         {
-            var createdUnixTime = await _conversationService.SendMessage(conversationId, request.messageId, request.senderUsername, request.text);
-            return CreatedAtAction(nameof(ListMessages), new { id = request.messageId }, new SendMessageResponse(createdUnixTime));
+            var createdUnixTime = await _conversationService.SendMessage(conversationId, request.id, request.senderUsername, request.text);
+            return CreatedAtAction(nameof(ListMessages), new { conversationId = request.id }, new SendMessageResponse(createdUnixTime));
         }
 
         [HttpPost]
@@ -32,8 +32,7 @@ namespace ChatApp.Controllers
             var response= await _conversationService.AddConversation(request.firstMessage,request.participants);
             string conversationId = response[0];
             string createdUnixTime = response[1];
-            //return CreatedAtAction(nameof(), new { id = conversationId }, new AddConversationResponse(conversationId, request.participants, DateTimeOffset.FromUnixTimeSeconds(long.Parse(createdUnixTime)).UtcDateTime));
-            return Ok(new AddConversationResponse(conversationId, request.participants, new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks(long.Parse(createdUnixTime))));
+            return CreatedAtAction(nameof(ListConversations), null, new AddConversationResponse(conversationId, request.participants, new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks(long.Parse(createdUnixTime))));
         }
 
         [HttpGet("{conversationId}/messages")]
@@ -51,7 +50,7 @@ namespace ChatApp.Controllers
                     nextContinuationToken=HttpUtility.UrlEncode(nextContinuationToken).Replace("%5C","");
                 }
                 var nextUri = nextContinuationToken != null
-                    ? $"/api/Conversation/{conversationId}/messages?limit={limit}&lastSeenMessageTime={lastSeenMessageTime}&continuationToken={nextContinuationToken}"
+                    ? $"/api/conversations/{conversationId}/messages?limit={limit}&lastSeenMessageTime={lastSeenMessageTime}&continuationToken={nextContinuationToken}"
                     : null;
                 return Ok(new ListMessagesResponse(messages, nextUri));
             }
@@ -73,7 +72,7 @@ namespace ChatApp.Controllers
                     nextContinuationToken = HttpUtility.UrlEncode(nextContinuationToken).Replace("%5C", "");
                 }
                 var nextUri = nextContinuationToken != null
-                    ? $"/api/Conversation/messages?username={username}&limit={limit}&lastSeenMessageTime={lastSeenConversationTime}&continuationToken={nextContinuationToken}"
+                    ? $"/api/conversations?username={username}&limit={limit}&lastSeenMessageTime={lastSeenConversationTime}&continuationToken={nextContinuationToken}"
                     : null;
                 return Ok(new ListConversationsResponse(conversations, nextUri));
             }
