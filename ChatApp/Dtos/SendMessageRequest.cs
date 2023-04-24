@@ -3,5 +3,5 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ChatApp.Dtos
 {
-    public record SendMessageRequest([Required] string messageId, [Required]  string senderUsername, [Required] string text);
+    public record SendMessageRequest([Required] string id, [Required]  string text, [Required] string senderUsername);
 }

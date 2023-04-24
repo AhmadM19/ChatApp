@@ -39,7 +39,7 @@ namespace ChatApp.Services
         {
             var conversationId = participants[0] + "_" + participants[1];
             var CreatedUnixTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var message = new Message(conversationId, firstMessage.messageId, firstMessage.senderUsername, firstMessage.text, CreatedUnixTime);
+            var message = new Message(conversationId, firstMessage.id, firstMessage.senderUsername, firstMessage.text, CreatedUnixTime);
             await _messageStore.SendMessage(message);
 
             var userConversation1=new Conversation(participants[0], participants[1],conversationId,CreatedUnixTime);
