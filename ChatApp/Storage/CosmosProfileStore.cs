@@ -39,7 +39,7 @@ namespace ChatApp.Storage
         public async Task UpsertProfile(Profile profile)
         {
             if(profile==null || string.IsNullOrWhiteSpace(profile.username) || string.IsNullOrWhiteSpace(profile.firstName)
-                || string.IsNullOrWhiteSpace(profile.lastName) || string.IsNullOrWhiteSpace(profile.profilePictureId) )
+                || string.IsNullOrWhiteSpace(profile.lastName))
             {
                 throw new ArgumentException($"Invalid profile{profile}", nameof(profile));
             }

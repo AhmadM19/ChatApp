@@ -5,5 +5,5 @@ namespace ChatApp.Dtos
      [Required] string username,
      [Required] string firstName,
      [Required] string lastName,
-     [Required] string profilePictureId);
+     string? profilePictureId=null);
 }
