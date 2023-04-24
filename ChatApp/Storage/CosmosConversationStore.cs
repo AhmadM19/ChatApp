@@ -71,7 +71,7 @@ namespace ChatApp.Storage
 
             QueryDefinition queryDefinition = new QueryDefinition("SELECT m.id, m.participant, m.lastModifiedUnixTime " +
                 "FROM m WHERE m.partitionKey=@username " +
-                "AND m.lastModifiedUnixTime >= @lastSeenConversationTime " +
+                "AND m.lastModifiedUnixTime > @lastSeenConversationTime " +
                 "ORDER BY m.lastModifiedUnixTime DESC ")
                 .WithParameter("@username", username)
                 .WithParameter("@lastSeenConversationTime", lastSeenConversationTime);
