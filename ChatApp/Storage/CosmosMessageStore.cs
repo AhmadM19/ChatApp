@@ -56,9 +56,9 @@ namespace ChatApp.Storage
             var messages = new List<ListMessagesResponseItem>();
             var queryOptions = new QueryRequestOptions() { MaxItemCount=limit, PartitionKey = new PartitionKey(conversationId) };
 
-            QueryDefinition queryDefinition = new QueryDefinition("SELECT m.text, m.senderUsername, m.createdUnixTime "+
+            QueryDefinition queryDefinition = new QueryDefinition("SELECT m.text, m.senderUsername, m.createdUnixTime AS unixTime "+
                 "FROM m WHERE m.partitionKey=@conversationId " +
-                "AND m.createdUnixTime >= @lastSeenMessageTime " +
+                "AND m.createdUnixTime > @lastSeenMessageTime " +
                 "ORDER BY m.createdUnixTime DESC ")
                 .WithParameter("@conversationId", conversationId)
                 .WithParameter("@lastSeenMessageTime", lastSeenMessageTime);
