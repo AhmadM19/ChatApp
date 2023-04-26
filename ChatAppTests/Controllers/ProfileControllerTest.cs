@@ -12,19 +12,23 @@ using Moq;
 using ChatApp.Storage;
 using Microsoft.VisualStudio.TestPlatform.TestHost;
 using ChatApp.Dtos;
+using ChatApp.Services;
+using ChatApp.Exceptions;
+using Microsoft.Azure.Cosmos;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace ChatAppTests.Controllers
 {
     public class ProfileControllerTests: IClassFixture<WebApplicationFactory<Program>>
     {
-        private readonly Mock<IProfileStore> _profileStoreMock = new();
+        private readonly Mock<IProfileService> _profileServiceMock = new();
         private readonly HttpClient _httpClient;
 
         public ProfileControllerTests(WebApplicationFactory<Program> factory)
         {
             _httpClient = factory.WithWebHostBuilder(builder =>
             {
-                builder.ConfigureTestServices(services => { services.AddSingleton(_profileStoreMock.Object); });
+                builder.ConfigureTestServices(services => { services.AddSingleton(_profileServiceMock.Object); });
             }).CreateClient();
         }
 
@@ -32,10 +36,10 @@ namespace ChatAppTests.Controllers
         public async Task GetProfile()
         {
             var profile = new Profile("foobar", "Foo", "Bar", Guid.NewGuid().ToString());
-            _profileStoreMock.Setup(m => m.GetProfile(profile.username))
+            _profileServiceMock.Setup(m => m.GetProfile(profile.username))
                 .ReturnsAsync(profile);
 
-            var response = await _httpClient.GetAsync($"/Profile/{profile.username}");
+            var response = await _httpClient.GetAsync($"api/profile/{profile.username}");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var json = await response.Content.ReadAsStringAsync();
             Assert.Equal(profile, JsonConvert.DeserializeObject<Profile>(json));
@@ -44,40 +48,46 @@ namespace ChatAppTests.Controllers
         [Fact]
         public async Task GetProfile_Notfound()
         {
-             _profileStoreMock.Setup(m => m.GetProfile("foobar"))
-             .ReturnsAsync((Profile?)null);
+            _profileServiceMock.Setup(m => m.GetProfile("foobar"))
+             .ThrowsAsync(new ProfileNotFoundException("foobar"));
 
-
-            var response = await _httpClient.GetAsync($"/Profile/foobar");
+            var response = await _httpClient.GetAsync($"api/profile/foobar");
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
 
         [Fact]
-        public async Task AddProfile()
+        public async Task Get_Profile_StorageUnavailable()
         {
-            var profile = new Profile("foobar", "Foo", "Bar", Guid.NewGuid().ToString());
-            var response = await _httpClient.PostAsync("/Profile",
-                new StringContent(JsonConvert.SerializeObject(profile), Encoding.Default, "application/json"));
-            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-            Assert.Equal("http://localhost/Profile/foobar", response.Headers.GetValues("Location").First());
+            _profileServiceMock.Setup(m => m.GetProfile("foo")).
+                ThrowsAsync(new StorageUnavailableException("foo",null));
 
-            _profileStoreMock.Verify(mock => mock.UpsertProfile(profile), Times.Once);
+            var response = await _httpClient.GetAsync($"api/profile/foo");
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
 
         }
 
         [Fact]
-        public async Task AddProfile_Conflict()
+        public async Task CreateProfile()
         {
             var profile = new Profile("foobar", "Foo", "Bar", Guid.NewGuid().ToString());
-            //Mock the interface to return the same entity I am trying to add
-            _profileStoreMock.Setup(m => m.GetProfile(profile.username))
-    .ReturnsAsync(profile);
 
-            var response = await _httpClient.PostAsync("/Profile",
+            var response = await _httpClient.PostAsync("api/profile",
                 new StringContent(JsonConvert.SerializeObject(profile), Encoding.Default, "application/json"));
-            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            _profileServiceMock.Verify(mock => mock.CreateProfile(profile), Times.Once);
 
-            _profileStoreMock.Verify(mock => mock.UpsertProfile(profile), Times.Never);
+        }
+
+        [Fact]
+        public async Task CreateProfile_Conflict()
+        {
+            var profile = new Profile("foobar", "Foo", "Bar", Guid.NewGuid().ToString());
+            _profileServiceMock.Setup(m => m.CreateProfile(profile))
+            .ThrowsAsync(new DuplicateProfileException(profile.username));
+
+            var response = await _httpClient.PostAsync("api/profile",
+            new StringContent(JsonConvert.SerializeObject(profile), Encoding.Default, "application/json"));
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         }
 
         [Theory]
@@ -90,37 +100,56 @@ namespace ChatAppTests.Controllers
         [InlineData("foobar", "Foo", null, "5b0fa492")]
         [InlineData("foobar", "Foo", "", "5b0fa492")]
         [InlineData("foobar", "Foo", " ", "5b0fa492")]
-        [InlineData("foobar", "Foo", "Bar", null)]
-        [InlineData("foobar", "Foo", "Bar", "")]
-        [InlineData("foobar", "Foo", "Bar", " ")]
-        public async Task AddProfile_InvalidArgs(string username, string firstName, string lastName, string profilePictureId)
+        public async Task CreateProfile_InvalidArgs(string username, string firstName, string lastName, string profilePictureId)
         {
             var profile = new Profile(username, firstName, lastName, profilePictureId);
-            var response = await _httpClient.PostAsync("/Profile",
+            var response = await _httpClient.PostAsync("api/profile",
     new StringContent(JsonConvert.SerializeObject(profile), Encoding.Default, "application/json"));
 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-            _profileStoreMock.Verify(mock => mock.UpsertProfile(profile), Times.Never);
+            _profileServiceMock.Verify(mock => mock.CreateProfile(profile), Times.Never);
+        }
+
+        [Fact]
+        public async Task Create_Profile_StorageUnavailable()
+        {
+            var profile = new Profile("foobar", "Foo", "Bar", Guid.NewGuid().ToString());
+
+            _profileServiceMock.Setup(m => m.CreateProfile(profile)).ThrowsAsync(new StorageUnavailableException("foo", null));
+            var response = await _httpClient.PostAsync($"api/profile", 
+                new StringContent(JsonConvert.SerializeObject(profile),Encoding.Default, "application/json"));
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+
         }
 
         [Fact]
         public async Task DeleteProfile()
         {
             var profile = new Profile("foobar", "Foo", "Bar", Guid.NewGuid().ToString());
-            _profileStoreMock.Setup(m => m.GetProfile(profile.username))
-            .ReturnsAsync(profile);
-            var response = await _httpClient.DeleteAsync($"/Profile/{profile.username}");
+
+            var response = await _httpClient.DeleteAsync($"api/profile/{profile.username}");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            _profileStoreMock.Verify(mock => mock.DeleteProfile(profile.username), Times.Once);
+            _profileServiceMock.Verify(mock => mock.DeleteProfile(profile.username), Times.Once);
         }
         [Fact]
         public async Task DeleteProfile_NotFound()
         {
-            _profileStoreMock.Setup(m => m.GetProfile("foobar"))
-            .ReturnsAsync((Profile?)null);
-            var response = await _httpClient.DeleteAsync("/Profile/foobar");
+            _profileServiceMock.Setup(m => m.DeleteProfile("foobar"))
+            .ThrowsAsync(new ProfileNotFoundException("foobar"));
+
+            var response = await _httpClient.DeleteAsync("api/profile/foobar");
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-            _profileStoreMock.Verify(mock => mock.DeleteProfile("foobar"), Times.Never);
+        }
+
+        [Fact]
+        public async Task Delete_Profile_StorageUnavailable()
+        {
+            _profileServiceMock.Setup(m => m.DeleteProfile("foo")).
+                ThrowsAsync(new StorageUnavailableException("foo", null));
+
+            var response = await _httpClient.DeleteAsync($"api/profile/foo");
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+
         }
 
 
