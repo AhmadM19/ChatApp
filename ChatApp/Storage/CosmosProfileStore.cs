@@ -4,6 +4,7 @@ using ChatApp.Dtos;
 using ChatApp.Storage.Entities;
 using Microsoft.Extensions.Options;
 using ChatApp.Configuration;
+using ChatApp.Exceptions;
 
 namespace ChatApp.Storage
 {
@@ -36,35 +37,47 @@ namespace ChatApp.Storage
         }
 
 
-        public async Task UpsertProfile(Profile profile)
-        {
-            if(profile==null || string.IsNullOrWhiteSpace(profile.username) || string.IsNullOrWhiteSpace(profile.firstName)
-                || string.IsNullOrWhiteSpace(profile.lastName))
-            {
-                throw new ArgumentException($"Invalid profile{profile}", nameof(profile));
-            }
-           await Container.UpsertItemAsync(ToEntity(profile));
-        }
 
         public async Task<Profile?> GetProfile(string username)
         {
+
             try
             {
                 var entity = await Container.ReadItemAsync<ProfileEntity>(
                     id: username, partitionKey: new PartitionKey(username), 
-                    new ItemRequestOptions { ConsistencyLevel=ConsistencyLevel.Session}
-                    );
+                    new ItemRequestOptions { ConsistencyLevel=ConsistencyLevel.Session} );
 
                 return ToProfile(entity);
             }
             catch (CosmosException e)
             {
-                if(e.StatusCode == HttpStatusCode.NotFound) { return null; }
-                throw;
+                if (e.StatusCode == HttpStatusCode.NotFound) { return null; }
+                throw new StorageUnavailableException
+                    ($"Couldn't get profile with username {username} from storage",e) ;
             }
+        }
+
+        public async Task CreateProfile(Profile profile)
+        {
+            if (profile == null || string.IsNullOrWhiteSpace(profile.username) || string.IsNullOrWhiteSpace(profile.firstName)
+               || string.IsNullOrWhiteSpace(profile.lastName))
+            {
+                throw new ArgumentException($"Invalid profile{profile}", nameof(profile));
+            }
+            try
+            {
+                await Container.CreateItemAsync(ToEntity(profile));
+            }
+
+            catch (CosmosException e)
+            {
+                throw new StorageUnavailableException($"Couldn't add profile with username {profile.username} to storage", e);
+            }
+
         }
         public async Task DeleteProfile(string username)
         {
+
             try
             {
                 await Container.DeleteItemAsync<Profile>(
@@ -73,8 +86,8 @@ namespace ChatApp.Storage
             }
             catch(CosmosException e)
             {
-                if (e.StatusCode== HttpStatusCode.NotFound) { return ;}
-                throw;
+                throw new StorageUnavailableException
+                    ($"Couldn't delete profile with username {username} from storage", e);
             }
         }
     }

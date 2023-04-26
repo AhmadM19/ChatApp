@@ -1,4 +1,4 @@
 ﻿namespace ChatApp.Storage.Entities
 {
-  public record ProfileEntity(string partitionKey, string id, string firstName, string lastName, string profilePictureId);
+  public record ProfileEntity(string partitionKey, string id, string firstName, string lastName, string? profilePictureId);
 }
