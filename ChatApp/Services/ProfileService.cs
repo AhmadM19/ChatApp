@@ -1,4 +1,5 @@
 ﻿using ChatApp.Dtos;
+using ChatApp.Exceptions;
 using ChatApp.Storage;
 
 namespace ChatApp.Services
@@ -12,19 +13,35 @@ namespace ChatApp.Services
             _profileStore = profileStore;
         }
 
-        public Task DeleteProfile(string username)
+        public async Task<Profile?> GetProfile(string username)
         {
-            return _profileStore.DeleteProfile(username);
+            var profile =  _profileStore.GetProfile(username);
+            if(profile.Result == null)
+            {
+                throw new ProfileNotFoundException(username);
+            }
+            return await _profileStore.GetProfile(username);
         }
 
-        public Task<Profile?> GetProfile(string username)
+        public async Task CreateProfile(Profile profile)
         {
-            return _profileStore.GetProfile(username);
-        }
 
-        public Task UpsertProfile(Profile profile)
+            var existingProfile =  _profileStore.GetProfile(profile.username);
+            if(existingProfile.Result != null) 
+            {
+                throw new DuplicateProfileException(profile.username);
+            }
+            await _profileStore.CreateProfile(profile);
+
+        }
+        public async Task DeleteProfile(string username)
         {
-            return _profileStore.UpsertProfile(profile);
+            var profile = _profileStore.GetProfile(username);
+            if (profile.Result == null)
+            {
+                throw new ProfileNotFoundException(username);
+            }
+            await _profileStore.DeleteProfile(username);
         }
     }
 }
