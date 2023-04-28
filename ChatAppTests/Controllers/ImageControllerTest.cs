@@ -18,33 +18,34 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using ChatApp.Services;
+using ChatApp.Exceptions;
+using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions.Interfaces;
 
 namespace ChatAppTests.Controllers
 {
     public class ImageControllerTests: IClassFixture<WebApplicationFactory<Program>>
     {
-        private readonly Mock<IImageStore> _imageStoreMock = new();
+        private readonly Mock<IImageService> _imageServiceMock = new();
         private readonly HttpClient _httpClient;
       
         public ImageControllerTests(WebApplicationFactory<Program> factory)
         {
             _httpClient = factory.WithWebHostBuilder(builder =>
             {
-                builder.ConfigureTestServices(services => { services.AddSingleton(_imageStoreMock.Object); });
+                builder.ConfigureTestServices(services => { services.AddSingleton(_imageServiceMock.Object); });
             }).CreateClient(); 
         }
 
         [Fact]
         public async Task DownloadImage()
         {
-            var imageFile = File.OpenRead("TestImages/avatarProfile.jpg");
-            var imageStream = new MemoryStream();
-            imageFile.CopyTo(imageStream);
-
+            string str = Guid.NewGuid().ToString();
+            var bytes = Encoding.UTF8.GetBytes(str);
             string imageId = Guid.NewGuid().ToString();
+            _imageServiceMock.Setup(m => m.DownloadImage(imageId)).ReturnsAsync(bytes);
 
-            _imageStoreMock.Setup(m => m.DownloadImage(imageId)).ReturnsAsync(imageStream.ToArray());
-            var response = await _httpClient.GetAsync($"Image/{imageId}");
+            var response = await _httpClient.GetAsync($"api/images/{imageId}");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal("image/png", response.Content.Headers.ContentType?.ToString());
         }
@@ -53,9 +54,23 @@ namespace ChatAppTests.Controllers
         public async Task DownloadImage_NotFound()
         {
             string imageId = Guid.NewGuid().ToString();
-            _imageStoreMock.Setup(m => m.DownloadImage(imageId)).ReturnsAsync((byte[]?)null);
-            var response = await _httpClient.GetAsync($"Image/{imageId}");
+            _imageServiceMock.Setup(m => m.DownloadImage(imageId)).ThrowsAsync(new ImageNotFoundException(imageId));
+
+            var response = await _httpClient.GetAsync($"api/images/{imageId}");
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task DownloadImage_StorageUnavailable()
+        {
+            string str = Guid.NewGuid().ToString();
+            var bytes = Encoding.UTF8.GetBytes(str);
+            string imageId = Guid.NewGuid().ToString();
+            _imageServiceMock.Setup(m => m.DownloadImage(imageId)).
+                ThrowsAsync(new StorageUnavailableException(imageId));
+
+            var response = await _httpClient.GetAsync($"api/images/{imageId}");
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         }
 
         [Fact]
@@ -64,38 +79,84 @@ namespace ChatAppTests.Controllers
             string str = Guid.NewGuid().ToString();
             var bytes = Encoding.UTF8.GetBytes(str);
             var stream = new MemoryStream(bytes);
-
+            var imageId= Guid.NewGuid().ToString();
             HttpContent fileStreamContent = new StreamContent(stream);
             fileStreamContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
             {
                 Name = "file",
                 FileName = "anything"
             };
+            using var formData = new MultipartFormDataContent();
+            formData.Add(fileStreamContent);
+            _imageServiceMock.Setup(m => m.UploadImage(bytes)).ReturnsAsync(imageId);
 
+            var response = await _httpClient.PostAsync("api/images", formData);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            _imageServiceMock.Verify(mock => mock.UploadImage(bytes), Times.Once);
+        }
+
+        [Fact]
+        public async Task UploadImage_Invalid()
+        {
+            var response= await _httpClient.PostAsync("api/images", null);
+            Assert.Equal(HttpStatusCode.BadRequest,response.StatusCode);
+        }
+
+        [Fact]
+        public async Task UploadImage_StorageUnavailable()
+        {
+            string str = Guid.NewGuid().ToString();
+            var bytes = Encoding.UTF8.GetBytes(str);
+            var stream = new MemoryStream(bytes);
+            string imageId = Guid.NewGuid().ToString();
+            _imageServiceMock.Setup(m => m.UploadImage(bytes)).
+                ThrowsAsync(new StorageUnavailableException(imageId));
+            HttpContent fileStreamContent = new StreamContent(stream);
+            fileStreamContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
+            {
+                Name = "file",
+                FileName = "anything"
+            };
             using var formData = new MultipartFormDataContent();
             formData.Add(fileStreamContent);
 
-            await _httpClient.PostAsync("/Image", formData);
-
-            _imageStoreMock.Verify(m => m.UploadImage(bytes));
+            var response = await _httpClient.PostAsync($"api/images",formData);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         }
 
         [Fact]
         public async Task DeleteImage()
         {
-            var imageFile = File.OpenRead("TestImages/avatarProfile.jpg");
-            var imageStream = new MemoryStream();
-            imageFile.CopyTo(imageStream);
-
             string imageId = Guid.NewGuid().ToString();
 
-            _imageStoreMock.Setup(m => m.DownloadImage(imageId)).ReturnsAsync(imageStream.ToArray());
-
-            var response = await _httpClient.DeleteAsync($"Image/{imageId}");
+            var response = await _httpClient.DeleteAsync($"api/images/{imageId}");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            _imageStoreMock.Verify(mock => mock.DeleteImage(imageId), Times.Once);
+            _imageServiceMock.Verify(mock => mock.DeleteImage(imageId), Times.Once);
         }
 
-      
+        [Fact]
+        public async Task DeleteImage_NotFound()
+        {
+            string imageId = Guid.NewGuid().ToString();
+            _imageServiceMock.Setup(m => m.DeleteImage(imageId)).ThrowsAsync(new ImageNotFoundException(imageId));
+
+            var response = await _httpClient.DeleteAsync($"api/images/{imageId}");
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task DeleteImage_StorageUnavailable()
+        {
+            string str = Guid.NewGuid().ToString();
+            var bytes = Encoding.UTF8.GetBytes(str);
+            string imageId = Guid.NewGuid().ToString();
+            _imageServiceMock.Setup(m => m.DeleteImage(imageId)).
+                ThrowsAsync(new StorageUnavailableException(imageId));
+
+            var response = await _httpClient.DeleteAsync($"api/images/{imageId}");
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        }
+
+
     }
 }
