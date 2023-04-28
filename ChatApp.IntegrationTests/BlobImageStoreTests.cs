@@ -1,6 +1,7 @@
 ﻿using Azure.Core;
 using Azure.Storage.Blobs;
 using ChatApp.Configuration;
+using ChatApp.Exceptions;
 using ChatApp.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -19,17 +20,13 @@ namespace ChatApp.IntegrationTests
 
         public BlobImageStoreTest()
         {
-            // Read the BlobStorage section from the appsettings.Test.json file
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.Test.json")
                 .Build();
             var blobSettings = new BlobSettings();
             configuration.GetSection("BlobStorage").Bind(blobSettings);
-            // Initialize the BlobServiceClient using the connection string from the configuration
             _blobServiceClient = new BlobServiceClient(blobSettings.ConnectionString);
-            // Create the test container in the storage account
             _containerClient = _blobServiceClient.GetBlobContainerClient(blobSettings.ContainerName);
-            // Create a new BlobImageStore object using the test container
             _imageStore = new BlobImageStore(_blobServiceClient, Options.Create(blobSettings));
         }
 
@@ -46,7 +43,15 @@ namespace ChatApp.IntegrationTests
             var imageId = await _imageStore.UploadImage(stream.ToArray());
             var imageData = await _imageStore.DownloadImage(imageId);
             Assert.NotNull(imageData);
+            //Dispose
             await _containerClient.DeleteBlobAsync(imageId);
+        }
+
+        [Fact]
+        public async Task DownloadImage_NotFound()
+        {
+            var imageId =Guid.NewGuid().ToString();
+            Assert.ThrowsAsync<ImageNotFoundException>(() => _imageStore.DownloadImage(imageId));
         }
 
         [Fact]
@@ -61,7 +66,14 @@ namespace ChatApp.IntegrationTests
             var imageId = await _imageStore.UploadImage(stream.ToArray());
             Assert.NotNull(imageId);
             Assert.NotEmpty(imageId);
+            //Dispose
             await _containerClient.DeleteBlobAsync(imageId);
+        }
+
+        [Fact]
+        public async Task UploadImage_Invalid()
+        {
+            Assert.ThrowsAsync<ArgumentException>(() => _imageStore.UploadImage(null));
         }
 
         [Fact]
@@ -78,7 +90,14 @@ namespace ChatApp.IntegrationTests
             var blobClient = _containerClient.GetBlobClient(imageId);
             Assert.False(await blobClient.ExistsAsync());
         }
-     
+
+        [Fact]
+        public async Task DeleteImage_NotFound()
+        {
+            var imageId = Guid.NewGuid().ToString();
+            Assert.ThrowsAsync<ImageNotFoundException>(() => _imageStore.DeleteImage(imageId));
+        }
+
 
     }
 }
