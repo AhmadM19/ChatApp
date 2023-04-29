@@ -17,7 +17,7 @@ namespace ChatApp.Services
         ///<exception cref="DuplicateConversationException">if conversation being created already exists</exception>
         ///<exception cref="ArgumentException">if arguments are not passed correctly</exception>
         ///<exception cref="StorageUnavailableException">if the database is unavailable</exception>
-        Task<string[]> AddConversation(SendMessageRequest firstMessage,params string[] participants);
+        Task<(string conversationId, long CreatedUnixTime)> AddConversation(SendMessageRequest firstMessage,params string[] participants);
 
         ///<exception cref="MessageNotFoundException">if no messages found in the given conversation</exception>
         ///<exception cref="ArgumentException">if arguments are not passed correctly</exception>

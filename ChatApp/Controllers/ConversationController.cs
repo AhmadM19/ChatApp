@@ -50,10 +50,8 @@ namespace ChatApp.Controllers
         {
             try
             {
-                var response = await _conversationService.AddConversation(request.firstMessage, request.participants);
-                string conversationId = response[0];
-                string createdUnixTime = response[1];
-                return CreatedAtAction(nameof(ListConversations), null, new AddConversationResponse(conversationId, request.participants, new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks(long.Parse(createdUnixTime))));
+                var (conversationId,createdUnixTime) = await _conversationService.AddConversation(request.firstMessage, request.participants);
+                return CreatedAtAction(nameof(ListConversations), null, new AddConversationResponse(conversationId, request.participants, new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks(createdUnixTime)));
             }
             catch(DuplicateConversationException e)
             {

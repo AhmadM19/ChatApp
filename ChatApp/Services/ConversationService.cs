@@ -23,12 +23,11 @@ namespace ChatApp.Services
 
         public async Task<long> SendMessage(string conversationId, string messageId, string senderUsername, string text)
         {
-            
             var CreatedUnixTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var message= new Message(conversationId, messageId, senderUsername, text,CreatedUnixTime);
             await _messageStore.SendMessage(message);
 
-            if (conversationId.Contains('_') || string.IsNullOrWhiteSpace(conversationId))
+            if (conversationId.Contains('_') && !string.IsNullOrWhiteSpace(conversationId))
             {
                 string[] participants = conversationId.Split('_');
                 //Will throw an exception if profiles don't exist
@@ -44,7 +43,7 @@ namespace ChatApp.Services
             return CreatedUnixTime;
         }
 
-        public async Task<string[]> AddConversation(SendMessageRequest firstMessage, params string[] participants)
+        public async Task<(string conversationId, long CreatedUnixTime)> AddConversation(SendMessageRequest firstMessage, params string[] participants)
         {
             var conversationId = participants[0] + "_" + participants[1];
             //Will throw an exception if profiles don't exist
@@ -59,7 +58,7 @@ namespace ChatApp.Services
             await _conversationStore.AddConversation(userConversation1);
             await _conversationStore.AddConversation(userConversation2);
 
-            return new string[] { conversationId, CreatedUnixTime.ToString() };
+            return (conversationId, CreatedUnixTime);
         }
 
         public async Task<(List<ListMessagesResponseItem>,string)> ListMessages(string conversationId, int limit, long lastSeenMessageTime,string continuationToken)
