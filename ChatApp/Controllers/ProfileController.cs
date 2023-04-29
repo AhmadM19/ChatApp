@@ -29,8 +29,7 @@ namespace ChatApp.Controllers
             catch(ProfileNotFoundException e)
             {
                 return NotFound(e.Message);
-            }
-            
+            }      
         }
 
         [HttpPost]
@@ -64,6 +63,5 @@ namespace ChatApp.Controllers
                 return NotFound(e.Message);
             }
         }
-
     }
 }
