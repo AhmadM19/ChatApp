@@ -8,6 +8,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
 //using System.ComponentModel;
 using System.Net;
+using ChatApp.Exceptions;
 
 namespace ChatApp.Storage
 {
@@ -40,60 +41,76 @@ namespace ChatApp.Storage
                 createdUnixTime: entity.createdUnixTime);
         }
 
+        private async Task<Message?> GetMessage(string conversationId, string messageId)
+        {
+            try
+            {
+                var entity = await Container.ReadItemAsync<MessageEntity>(
+                    id: messageId, partitionKey: new PartitionKey(conversationId),
+                    new ItemRequestOptions { ConsistencyLevel = ConsistencyLevel.Session });
+                return ToMessage(entity);
+            }
+            catch(CosmosException e)
+            {
+                if (e.StatusCode == HttpStatusCode.NotFound) { return null; }
+                throw new StorageUnavailableException
+                ($"Couldn't get message with id {messageId} from storage");
+            }
+        } 
 
         public async Task SendMessage(Message message)
         {
+            if (GetMessage(message.conversationId, message.messageId).Result !=null)
+            {
+                throw new DuplicateMessageException(message.messageId);
+            }
             if (message == null || string.IsNullOrWhiteSpace(message.conversationId) || string.IsNullOrWhiteSpace(message.messageId)
                 || string.IsNullOrWhiteSpace(message.senderUsername) || string.IsNullOrWhiteSpace(message.text) || string.IsNullOrWhiteSpace(message.createdUnixTime.ToString()))
             {
                 throw new ArgumentException($"Invalid message{message}", nameof(message));
             }
-            await Container.CreateItemAsync(ToEntity(message));
+            try
+            {
+                await Container.CreateItemAsync(ToEntity(message));
+            }
+            catch (CosmosException e)
+            {
+                throw new StorageUnavailableException($"Couldn't add message with id {message.messageId} to storage");
+            }
         }
 
         public async Task<(List<ListMessagesResponseItem>, string)> ListMessages(string conversationId, int limit, long lastSeenMessageTime, string continuationToken)
         {
-            var messages = new List<ListMessagesResponseItem>();
-            var queryOptions = new QueryRequestOptions() { MaxItemCount=limit, PartitionKey = new PartitionKey(conversationId) };
-
-            QueryDefinition queryDefinition = new QueryDefinition("SELECT m.text, m.senderUsername, m.createdUnixTime AS unixTime "+
-                "FROM m WHERE m.partitionKey=@conversationId " +
-                "AND m.createdUnixTime > @lastSeenMessageTime " +
-                "ORDER BY m.createdUnixTime DESC ")
-                .WithParameter("@conversationId", conversationId)
-                .WithParameter("@lastSeenMessageTime", lastSeenMessageTime);
-
-            FeedIterator<ListMessagesResponseItem> feedIterator = Container.GetItemQueryIterator<ListMessagesResponseItem>(queryDefinition,
-                continuationToken:continuationToken,
-                requestOptions: queryOptions );
-
-            var responseToken = "";
-            while (feedIterator.HasMoreResults && messages.Count < limit)
+            try
             {
-                FeedResponse<ListMessagesResponseItem> response = await feedIterator.ReadNextAsync();
-                messages.AddRange(response.ToList());
-                responseToken = response.ContinuationToken;
+                var messages = new List<ListMessagesResponseItem>();
+                var queryOptions = new QueryRequestOptions() { MaxItemCount = limit, PartitionKey = new PartitionKey(conversationId) };
+
+                QueryDefinition queryDefinition = new QueryDefinition("SELECT m.text, m.senderUsername, m.createdUnixTime AS unixTime " +
+                    "FROM m WHERE m.partitionKey=@conversationId " +
+                    "AND m.createdUnixTime > @lastSeenMessageTime " +
+                    "ORDER BY m.createdUnixTime DESC ")
+                    .WithParameter("@conversationId", conversationId)
+                    .WithParameter("@lastSeenMessageTime", lastSeenMessageTime);
+
+                FeedIterator<ListMessagesResponseItem> feedIterator = Container.GetItemQueryIterator<ListMessagesResponseItem>(queryDefinition,
+                    continuationToken: continuationToken,
+                    requestOptions: queryOptions);
+
+                var responseToken = "";
+                while (feedIterator.HasMoreResults && messages.Count < limit)
+                {
+                    FeedResponse<ListMessagesResponseItem> response = await feedIterator.ReadNextAsync();
+                    messages.AddRange(response.ToList());
+                    responseToken = response.ContinuationToken;
+                }
+                return (messages, responseToken);
             }
-            return (messages,responseToken);
+            catch (CosmosException)
+            {
+                throw new StorageUnavailableException($"Couldn't list message for the given conversation with id{conversationId}");
+            }
             
         }
-
-
-        /*    public async Task DeleteProfile(string username)
-   {
-       try
-       {
-           await Container.DeleteItemAsync<Profile>(
-               id: username, partitionKey: new PartitionKey(username)
-           );
-       }
-       catch (CosmosException e)
-       {
-           if (e.StatusCode == HttpStatusCode.NotFound) { return; }
-           throw;
-       }
-   }
-}
-} */
     }
 }
