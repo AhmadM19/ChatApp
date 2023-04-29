@@ -10,9 +10,11 @@ namespace ChatApp.Services
         /// <exception cref="DuplicateProfileException">if the profile already exists</exception>
         /// <exception cref="StorageUnavailableException">if the database is unavailable</exception>
         Task CreateProfile(Profile profile);
+
         /// <exception cref="ProfileNotFoundException">if the profile does not exists</exception>
         /// <exception cref="StorageUnavailableException">if the database is unavailable</exception>
         Task<Profile?> GetProfile(string username);
+
         /// <exception cref="ProfileNotFoundException"> if the profile does not exists</exception>
         /// <exception cref="StorageUnavailableException">if the database is unavailable</exception>
         Task DeleteProfile(string username);
