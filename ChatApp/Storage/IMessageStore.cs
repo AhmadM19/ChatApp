@@ -13,5 +13,11 @@ namespace ChatApp.Storage
 
         ///<exception cref="StorageUnavailableException">if the database is unavailable</exception>
         Task<(List<ListMessagesResponseItem>,string)> ListMessages(string conversationId, int limit, long lastSeenMessageTime,string continuationToken);
+
+        ///<exception cref="StorageUnavailableException">if the database is unavailable</exception>
+        Task<Message?> GetMessage(string conversationId, string messageId);
+
+        ///<exception cref="StorageUnavailableException">if the database is unavailable</exception>
+        Task DeleteMessage(string conversationId, string messageId);
     }
 }
