@@ -37,23 +37,12 @@ jobs:
     - name: Build
       run: dotnet build ${{ env.WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} --no-restore
     - name: Test
-      run: dotnet test ChatAppTests --no-build
+      run: dotnet test ChatAppTests/ChatAppTests.csproj --no-build
     - name: Publish
       run: dotnet publish ${{ env.WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
     - name: Install Swashbuckle CLI .NET Global Tool
       run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version ${{ env.SWASHBUCLE_ASPNET_CORE_CLI_PACKAGE_VERSION }}
       working-directory: ${{ env.WORKING_DIRECTORY }}    
-    - name: swagger ui
-      uses: pjoc-team/swagger-ui-action@v0.0.2
-      with:
-       dir: ./
-       pattern: swagger.json
-       output: swagger-ui
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: swagger-ui
     - name: Publish Artifacts
       uses: actions/upload-artifact@v1.0.0
       with:
@@ -68,6 +57,10 @@ jobs:
       with:
         name: webapp
         path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+    - name: Install Azure CLI
+      run: |
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        az version
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
