@@ -43,11 +43,12 @@ jobs:
     - name: Install Swashbuckle CLI .NET Global Tool
       run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version ${{ env.SWASHBUCLE_ASPNET_CORE_CLI_PACKAGE_VERSION }}
       working-directory: ${{ env.WORKING_DIRECTORY }}    
-    - name: Generate Swagger UI
-      uses: Legion2/swagger-ui-action@v1
+    - name: swagger ui
+      uses: pjoc-team/swagger-ui-action@v0.0.2
       with:
-        output: swagger-ui
-        spec-file: openapi.json
+       dir: ./
+       pattern: swagger.json
+       output: swagger-ui
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
