@@ -1,4 +1,5 @@
 ﻿using ChatApp.Dtos;
+using ChatApp.Exceptions;
 using ChatApp.Services;
 using ChatApp.Storage;
 using Microsoft.AspNetCore.Mvc;
@@ -19,30 +20,46 @@ namespace ChatApp.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> DownloadImage(string id)
         {
-            var imageData = await _imageService.DownloadImage(id);
-            if (imageData == null)
-            {
-                return NotFound($"The image with id {id} is not found");
+            try 
+            { 
+                var imageData= await _imageService.DownloadImage(id);
+                return File(imageData, "image/png");
             }
-            return File(imageData, "image/png");
+            catch(ImageNotFoundException e)
+            {
+                return NotFound(e.Message);
+            }
         }
 
         [HttpPost]
         public async Task<ActionResult<UploadImageResponse>> UploadImage([FromForm] UploadImageRequest request)
         {
-            using var stream = new MemoryStream();
-            await request.File.CopyToAsync(stream);
-            var imageId = await _imageService.UploadImage(stream.ToArray());
-            return CreatedAtAction(nameof(DownloadImage), new { id = imageId },new UploadImageResponse(imageId));
+            try
+            {
+                using var stream = new MemoryStream();
+                await request.File.CopyToAsync(stream);
+                var imageId = await _imageService.UploadImage(stream.ToArray());
+                return CreatedAtAction(nameof(DownloadImage), new { id = imageId }, new UploadImageResponse(imageId));
+            }
+            catch(ArgumentNullException e)
+            {
+                return BadRequest(e.Message);
+            }
+            //No Conflict case since every new image has a unique generated Id
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteImage(string id)
-        { 
-            await _imageService.DeleteImage(id);
-            return Ok();
-            
+        {
+            try
+            {
+                await _imageService.DeleteImage(id);
+                return Ok();
+            }
+            catch(ImageNotFoundException e)
+            {
+                return NotFound(e.Message);
+            }     
         }
-
     }
 }

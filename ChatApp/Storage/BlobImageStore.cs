@@ -1,7 +1,9 @@
-﻿using Azure.Core;
+﻿using Azure;
+using Azure.Core;
 using Azure.Storage.Blobs;
 using ChatApp.Configuration;
 using ChatApp.Dtos;
+using ChatApp.Exceptions;
 using ChatApp.Storage.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -22,29 +24,53 @@ namespace ChatApp.Storage
             _containerClient = blobServiceClient.GetBlobContainerClient(options.Value.ContainerName);
         }
 
-        public async Task<byte[]> DownloadImage(string id)
+        public async Task<string> UploadImage(byte[] file)
         {
-            var blobClient = _containerClient.GetBlobClient(id);
-            var downloadContent = await blobClient.DownloadAsync();
-            using (var memoryStream = new MemoryStream())
+           if(file==null) throw new ArgumentNullException(nameof(file));
+            try
             {
-                await downloadContent.Value.Content.CopyToAsync(memoryStream);
-                return memoryStream.ToArray();
+                using var stream = new MemoryStream(file);
+                string imageId = Guid.NewGuid().ToString();
+                stream.Position = 0;
+                await _containerClient.UploadBlobAsync(imageId, stream);
+                return imageId;
+            }
+            catch(RequestFailedException e){
+                throw new StorageUnavailableException($"Couldn't upload image to storage");
             }
         }
 
-        public async Task<string> UploadImage(byte[] file)
+        public async Task<byte[]> DownloadImage(string id)
         {
-           using var stream = new MemoryStream(file);
-           string imageId = Guid.NewGuid().ToString();
-           stream.Position = 0;
-           await _containerClient.UploadBlobAsync(imageId, stream);
-           return imageId;   
+            try
+            {
+                var blobClient = _containerClient.GetBlobClient(id);
+                var downloadContent = await blobClient.DownloadAsync();
+                using (var memoryStream = new MemoryStream())
+                {
+                    await downloadContent.Value.Content.CopyToAsync(memoryStream);
+                    return memoryStream.ToArray();
+                }
+            }
+            catch (RequestFailedException e)
+            {
+                if (e.Status == 404) { throw new ImageNotFoundException(id); }
+                throw new StorageUnavailableException($"Couldn't download image with id {id} from storage");
+            }
         }
 
         public async Task DeleteImage(string id)
         {
-            await _containerClient.DeleteBlobAsync(id);
+            try
+            {
+                var blobClient = _containerClient.GetBlobClient(id);
+                await _containerClient.DeleteBlobAsync(id);
+            }
+            catch (RequestFailedException e)
+            {
+                if (e.Status == 404) { throw new ImageNotFoundException(id); }
+                throw new StorageUnavailableException($"Couldn't delete image wiht id {id} from storage");
+            }
         }
 
     }

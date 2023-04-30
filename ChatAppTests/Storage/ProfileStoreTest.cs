@@ -10,7 +10,7 @@ namespace ProfileService.Web.IntegrationTests;
 
 public class ProfileStoreTest : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly IProfileStore _store;
+    private readonly IProfileStore _profileStore;
 
     private readonly Profile _profile = new(
         username: Guid.NewGuid().ToString(),
@@ -21,15 +21,15 @@ public class ProfileStoreTest : IClassFixture<WebApplicationFactory<Program>>
 
     public ProfileStoreTest(WebApplicationFactory<Program> factory)
     {
-        _store = factory.Services.GetRequiredService<IProfileStore>();
+        _profileStore = factory.Services.GetRequiredService<IProfileStore>();
     }
 
     [Fact]
     public async Task CreateProfile()
     {
-        await _store.CreateProfile(_profile);
-        Assert.Equal(_profile, await _store.GetProfile(_profile.username));
-        await _store.DeleteProfile(_profile.username);
+        await _profileStore.CreateProfile(_profile);
+        Assert.Equal(_profile, await _profileStore.GetProfile(_profile.username));
+        await _profileStore.DeleteProfile(_profile.username);
     }
 
     [Theory]
@@ -45,26 +45,28 @@ public class ProfileStoreTest : IClassFixture<WebApplicationFactory<Program>>
     public async Task CreateProfile_InvalidArgs(string username, string firstName, string lastName, string profilePictureId)
     {
         var invalidProfile=new Profile(username, firstName, lastName, profilePictureId);
-        await Assert.ThrowsAsync<ArgumentException>(() =>  _store.CreateProfile(invalidProfile));
+        await Assert.ThrowsAsync<ArgumentException>(() => _profileStore.CreateProfile(invalidProfile));
 
     }
 
     [Fact]
     public async Task GetProfile()
     {
-        await _store.CreateProfile(_profile);
-        var profile = await _store.GetProfile(_profile.username);
-        Assert.NotNull(profile);
-        await _store.DeleteProfile(_profile.username);
+        await _profileStore.CreateProfile(_profile);
+        var profile = await _profileStore.GetProfile(_profile.username);
+        Assert.Equal(profile.username,_profile.username);
+        Assert.Equal(profile.firstName, _profile.firstName);
+        Assert.Equal(profile.lastName, _profile.lastName);
+        await _profileStore.DeleteProfile(_profile.username);
     }
 
     [Fact]
     public async Task DeleteProfile()
     {
-        await _store.CreateProfile(_profile);
-        await _store.DeleteProfile(_profile.username);
-        Assert.Null(await _store.GetProfile(_profile.username));
+        await _profileStore.CreateProfile(_profile);
+        await _profileStore.DeleteProfile(_profile.username);
+        Assert.Null(await _profileStore.GetProfile(_profile.username));
     }
 
-    //GetProfile_NotFound, DeleteProfile_NotFound, CreateProfile_Duplicate edge cases are tested in service layer tests
+    //GetProfile_NotFound, DeleteProfile_NotFound, CreateProfile_Duplicate edge cases are checked at service layer
 }

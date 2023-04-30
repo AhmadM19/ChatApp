@@ -59,11 +59,10 @@ namespace ChatAppTests.Controllers
         public async Task Get_Profile_StorageUnavailable()
         {
             _profileServiceMock.Setup(m => m.GetProfile("foo")).
-                ThrowsAsync(new StorageUnavailableException("foo",null));
+                ThrowsAsync(new StorageUnavailableException("foo"));
 
             var response = await _httpClient.GetAsync($"api/profile/foo");
             Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-
         }
 
         [Fact]
@@ -103,9 +102,9 @@ namespace ChatAppTests.Controllers
         public async Task CreateProfile_InvalidArgs(string username, string firstName, string lastName, string profilePictureId)
         {
             var profile = new Profile(username, firstName, lastName, profilePictureId);
+
             var response = await _httpClient.PostAsync("api/profile",
     new StringContent(JsonConvert.SerializeObject(profile), Encoding.Default, "application/json"));
-
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             _profileServiceMock.Verify(mock => mock.CreateProfile(profile), Times.Never);
         }
@@ -114,8 +113,8 @@ namespace ChatAppTests.Controllers
         public async Task Create_Profile_StorageUnavailable()
         {
             var profile = new Profile("foobar", "Foo", "Bar", Guid.NewGuid().ToString());
-
-            _profileServiceMock.Setup(m => m.CreateProfile(profile)).ThrowsAsync(new StorageUnavailableException("foo", null));
+            _profileServiceMock.Setup(m => m.CreateProfile(profile)).ThrowsAsync(new StorageUnavailableException("foobar"));
+            
             var response = await _httpClient.PostAsync($"api/profile", 
                 new StringContent(JsonConvert.SerializeObject(profile),Encoding.Default, "application/json"));
             Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
@@ -145,13 +144,11 @@ namespace ChatAppTests.Controllers
         public async Task Delete_Profile_StorageUnavailable()
         {
             _profileServiceMock.Setup(m => m.DeleteProfile("foo")).
-                ThrowsAsync(new StorageUnavailableException("foo", null));
+                ThrowsAsync(new StorageUnavailableException("foo"));
 
             var response = await _httpClient.DeleteAsync($"api/profile/foo");
             Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
 
         }
-
-
     }
 }

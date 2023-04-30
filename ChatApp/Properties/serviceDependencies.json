@@ -3,14 +3,15 @@
     "apis1": {
       "type": "apis"
     },
+    "cosmosdb1": {
+      "type": "cosmosdb",
+      "connectionId": "Cosmos:ConnectionString",
+      "dynamicId": null
+    },
     "storage1": {
       "type": "storage",
       "connectionId": "BlobStorage:ConnectionString",
       "dynamicId": null
-    },
-    "cosmosdb1": {
-      "type": "cosmosdb",
-      "connectionId": "Cosmos:ConnectionString"
     }
   }
 }

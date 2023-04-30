@@ -40,7 +40,6 @@ namespace ChatApp.Storage
 
         public async Task<Profile?> GetProfile(string username)
         {
-
             try
             {
                 var entity = await Container.ReadItemAsync<ProfileEntity>(
@@ -53,7 +52,7 @@ namespace ChatApp.Storage
             {
                 if (e.StatusCode == HttpStatusCode.NotFound) { return null; }
                 throw new StorageUnavailableException
-                    ($"Couldn't get profile with username {username} from storage",e) ;
+                    ($"Couldn't get profile with username {username} from storage") ;
             }
         }
 
@@ -71,7 +70,7 @@ namespace ChatApp.Storage
 
             catch (CosmosException e)
             {
-                throw new StorageUnavailableException($"Couldn't add profile with username {profile.username} to storage", e);
+                throw new StorageUnavailableException($"Couldn't add profile with username {profile.username} to storage");
             }
 
         }
@@ -87,7 +86,7 @@ namespace ChatApp.Storage
             catch(CosmosException e)
             {
                 throw new StorageUnavailableException
-                    ($"Couldn't delete profile with username {username} from storage", e);
+                    ($"Couldn't delete profile with username {username} from storage");
             }
         }
     }
