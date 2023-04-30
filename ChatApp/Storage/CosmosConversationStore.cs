@@ -37,7 +37,7 @@ namespace ChatApp.Storage
                 lastModifiedUnixTime: entity.lastModifiedUnixTime);
         }
 
-        private async Task<Conversation?> GetConversation(string username, string conversationId)
+        public async Task<Conversation?> GetConversation(string username, string conversationId)
         {
             try
             {
@@ -51,6 +51,20 @@ namespace ChatApp.Storage
                 if (e.StatusCode == HttpStatusCode.NotFound) { return null; }
                 throw new StorageUnavailableException
                 ($"Couldn't get conversation with id {conversationId} from storage");
+            }
+        }
+        public async Task DeleteConversation(string username, string conversationId)
+        {
+            try
+            {
+                await Container.DeleteItemAsync<Profile>(
+                     id: conversationId, partitionKey: new PartitionKey(username)
+                 );
+            }
+            catch (CosmosException e)
+            {
+                throw new StorageUnavailableException
+                ($"Couldn't delete conversation with id {conversationId} from storage");
             }
         }
 
