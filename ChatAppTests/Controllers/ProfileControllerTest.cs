@@ -150,7 +150,5 @@ namespace ChatAppTests.Controllers
             Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
 
         }
-
-
     }
 }

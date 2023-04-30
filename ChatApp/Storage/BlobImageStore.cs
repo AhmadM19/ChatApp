@@ -24,8 +24,6 @@ namespace ChatApp.Storage
             _containerClient = blobServiceClient.GetBlobContainerClient(options.Value.ContainerName);
         }
 
-
-
         public async Task<string> UploadImage(byte[] file)
         {
            if(file==null) throw new ArgumentNullException(nameof(file));

@@ -117,9 +117,8 @@ namespace ChatAppTests.Controllers
         {
             SendMessageRequest messageRequest = new SendMessageRequest("123", "Hello!", "foo");
             string[] participants = { "foo", "bar" };
-            string[] result = { "foo_bar", "1000" };
             AddConversationRequest conversationRequest = new AddConversationRequest(messageRequest,participants);
-            _conversationServiceMock.Setup(m => m.AddConversation(messageRequest, participants)).ReturnsAsync(result);
+            _conversationServiceMock.Setup(m => m.AddConversation(messageRequest, participants)).ReturnsAsync(("foo_bar",1000));
 
             var response = await _httpClient.PostAsync("api/conversations", 
                 new StringContent(JsonConvert.SerializeObject(conversationRequest), Encoding.Default, "application/json"));

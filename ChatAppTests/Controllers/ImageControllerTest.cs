@@ -156,7 +156,5 @@ namespace ChatAppTests.Controllers
             var response = await _httpClient.DeleteAsync($"api/images/{imageId}");
             Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         }
-
-
     }
 }
