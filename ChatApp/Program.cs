@@ -6,6 +6,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Azure;
 using ChatApp.Exceptions;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,7 +27,8 @@ builder.Services.AddSingleton(x =>
     return new BlobServiceClient(connectionString);
 });
 // Add Services
-builder.Services.AddApplicationInsightsTelemetry();
+
+
 builder.Services.AddSingleton<IProfileStore, CosmosProfileStore>();
 builder.Services.AddSingleton<IProfileService, ProfileService>();
 
@@ -41,6 +43,7 @@ builder.Services.AddAzureClients(clientBuilder =>
 {
     clientBuilder.AddBlobServiceClient(builder.Configuration["BlobStorage:ConnectionString:blob"], preferMsi: true);
 });
+builder.Services.AddApplicationInsightsTelemetry(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]);
 
 
 var app = builder.Build();
