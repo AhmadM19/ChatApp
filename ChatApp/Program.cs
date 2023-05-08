@@ -26,6 +26,7 @@ builder.Services.AddSingleton(x =>
     return new BlobServiceClient(connectionString);
 });
 // Add Services
+builder.Services.AddApplicationInsightsTelemetry();
 builder.Services.AddSingleton<IProfileStore, CosmosProfileStore>();
 builder.Services.AddSingleton<IProfileService, ProfileService>();
 
